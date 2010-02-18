@@ -4,6 +4,7 @@ use base qw/DBIx::Class/;
 
 use Scalar::Util 'blessed';
 use DBIx::Class::Schema::Journal::DB;
+use Class::C3::Componentised ();
 
 __PACKAGE__->mk_classdata('journal_storage_type');
 __PACKAGE__->mk_classdata('journal_connection');
@@ -19,73 +20,42 @@ __PACKAGE__->mk_classdata('journal_nested_changesets');
 use strict;
 use warnings;
 
-# sub throw_exception
-# {
-# }
 
-# sub exception_action
-# {
-#     my $self = shift;
-# #    print STDERR Carp::longmess;
-    
-#     $self->next::method(@_);
-# }
-
-# sub load_classes
-# {
-#     my $class = shift;
-
-
-#     $class->next::method(@_);
-    
-# }
-
-sub _journal_schema_prototype
-{
+sub _journal_schema_prototype {
     my $self = shift;
-    if (my $proto = $self->__journal_schema_prototype)
-    {
+    if (my $proto = $self->__journal_schema_prototype) {
           return $proto;
     }
-    my $proto = $self->__journal_schema_prototype
-    (
-        DBIx::Class::Schema::Journal::DB->compose_namespace
-        (
-            (blessed($self)||$self) . '::Journal'
-        )
+    my $c = blessed($self)||$self;
+    my $journal_schema_class = "${c}::_JOURNAL";
+    Class::C3::Componentised->inject_base($journal_schema_class, 'DBIx::Class::Schema::Journal::DB');
+    my $proto = $self->__journal_schema_prototype (
+        $journal_schema_class->compose_namespace( $c.'::Journal')
     );
     my $comp = $self->journal_component || "Journal";
 
     ## Create auditlog+history per table
     my %j_sources = map { $_ => 1 } $self->journal_sources
-                                      ? @{$self->journal_sources}
-                                      : $self->sources;
+       ? @{$self->journal_sources}
+       : $self->sources;
 
-    foreach my $s_name ($self->sources)
-    {
+    foreach my $s_name ($self->sources) {
         next unless($j_sources{$s_name});
         $self->create_journal_for($s_name => $proto);
         $self->class($s_name)->load_components($comp);
-#        print STDERR "$s_name :", $self->class($s_name), "\n";
     }
     return $proto;
 }
 
-sub connection
-{
+sub connection {
     my $self = shift;
     my $schema = $self->next::method(@_);
 
-#   print STDERR join(":", $self->sources), "\n";
-
     my $journal_schema = (ref $self||$self)->_journal_schema_prototype->clone;
 
-    if($self->journal_connection)
-    {
-        if($self->journal_storage_type)
-        {
-            $journal_schema->storage_type($self->journal_storage_type);
-        }
+    if($self->journal_connection) {
+        $journal_schema->storage_type($self->journal_storage_type)
+            if $self->journal_storage_type;
         $journal_schema->connection(@{ $self->journal_connection });
     } else {
         $journal_schema->storage( $schema->storage );
@@ -96,15 +66,14 @@ sub connection
 
     if ( $self->journal_nested_changesets ) {
         $self->_journal_schema->nested_changesets(1);
-        die "FIXME nested changeset schema not yet supported... add parent_id to ChangeSet here";
+        die 'FIXME nested changeset schema not yet supported... add parent_id to ChangeSet here';
     }
 
     $self->journal_schema_deploy()
         if $self->journal_deploy_on_connect;
 
     ## Set up relationship between changeset->user_id and this schema's user
-    if(!@{$self->journal_user || []})
-    {
+    if(!@{$self->journal_user || []}) {
         #warn "No Journal User set!"; # no need to warn, user_id is useful even without a rel
         return $schema;
     }
@@ -115,47 +84,41 @@ sub connection
     return $schema;
 }
 
-sub deploy
-{
-    my ( $self, $sqlt_args, @args ) = @_;
+sub deploy {
+    my $self = shift;
 
-    $self->next::method($sqlt_args, @args);
+    $self->next::method(@_);
 
-    $self->journal_schema_deploy($sqlt_args, @args);
+    $self->journal_schema_deploy(@_);
 }
 
-sub journal_schema_deploy
-{
-    my ( $self, $sqlt_args, @args ) = @_;
+sub journal_schema_deploy {
+    my $self = shift;
 
-    $self->_journal_schema->deploy( $sqlt_args, @args );
+    $self->_journal_schema->deploy(@_);
 }
 
-sub create_journal_for
-{
+sub create_journal_for {
     my ($self, $s_name, $journal_schema) = @_;
 
     my $source = $self->source($s_name);
 
     foreach my $audit (qw(AuditLog AuditHistory)) {
-        my $audit_source = join("", $s_name, $audit);
+        my $audit_source = $s_name.$audit;
         my $class = blessed($journal_schema) . "::$audit_source";
 
-        DBIx::Class::Componentised->inject_base($class, "DBIx::Class::Schema::Journal::DB::$audit");
+        Class::C3::Componentised->inject_base($class, "DBIx::Class::Schema::Journal::DB::$audit");
 
         $class->journal_define_table($source);
 
         $journal_schema->register_class($audit_source, $class);
 
-        if ($self->journal_copy_sources)
-        {
-            $self->register_class($audit_source, $class);
-        }
+        $self->register_class($audit_source, $class)
+            if $self->journal_copy_sources;
     }
 }
 
-sub txn_do
-{
+sub txn_do {
     my ($self, $user_code, @args) = @_;
 
     my $jschema = $self->_journal_schema;
@@ -163,8 +126,7 @@ sub txn_do
     my $code = $user_code;
 
     my $current_changeset = $jschema->_current_changeset;
-    if ( !$current_changeset || $self->journal_nested_changesets )
-    {
+    if ( !$current_changeset || $self->journal_nested_changesets ) {
         my $current_changeset_ref = $jschema->_current_changeset_container;
 
         unless ( $current_changeset_ref ) {
@@ -190,20 +152,20 @@ sub txn_do
     return $self->next::method($code, @args);
 }
 
-sub changeset_user
-{
+sub changeset_user {
     my ($self, $userid) = @_;
 
-    return $self->_journal_schema->current_user() if(@_ == 1);
+    return $self->_journal_schema->current_user()
+       if @_ == 1;
 
     $self->_journal_schema->current_user($userid);
 }
 
-sub changeset_session
-{
+sub changeset_session {
     my ($self, $sessionid) = @_;
 
-    return $self->_journal_schema->current_session() if(@_ == 1);
+    return $self->_journal_schema->current_session()
+       if @_ == 1;
 
     $self->_journal_schema->current_session($sessionid);
 }

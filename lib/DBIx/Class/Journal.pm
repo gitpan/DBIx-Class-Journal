@@ -5,39 +5,29 @@ use base qw/DBIx::Class/;
 use strict;
 use warnings;
 
-our $VERSION = '0.900001_02';
+our $VERSION = '0.900001_03';
+$VERSION = eval $VERSION; # no errors in dev versions
 
 ## On create/insert, add new entry to AuditLog
-
-# sub new
-# {
-#     my ($class, $attrs, @rest) = @_;
-
-#     $class->result_source->schema->_journal_schema->current_user(delete $attrs->{user_id});
-
-#     $class->next::method($attrs, @rest);
-# }
 
 sub _journal_schema {
     my $self = shift;
     $self->result_source->schema->_journal_schema;
 }
 
-sub insert
-{
+sub insert {
     my ($self, @args) = @_;
 
-    return if($self->in_storage);
+    return if $self->in_storage;
 
     my $res = $self->next::method(@args);
 
-    $self->journal_log_insert();
+    $self->journal_log_insert;
 
     return $res;
 }
 
-sub journal_log_insert
-{
+sub journal_log_insert {
     my ($self) = @_;
 
     if ( $self->in_storage ) {
@@ -50,15 +40,13 @@ sub journal_log_insert
 
 ## On delete, update delete_id of AuditLog
 
-sub delete
-{
-    my ($self, @rest) = @_;
-    $self->next::method(@rest);
-    $self->journal_log_delete(@rest);
+sub delete {
+    my $self = shift;
+    $self->next::method(@_);
+    $self->journal_log_delete(@_);
 }
 
-sub journal_log_delete
-{
+sub journal_log_delete {
     my ($self) = @_;
 
     unless ($self->in_storage) {
@@ -69,19 +57,16 @@ sub journal_log_delete
 
 ## On update, copy previous row's contents to AuditHistory
 
-sub update 
-{
-    my ($self, $upd, @rest) = @_;
-    $self->journal_log_update($upd, @rest);
-    $self->next::method($upd, @rest);
+sub update {
+    my $self = shift;
+    $self->journal_log_update(@_);
+    $self->next::method(@_);
 }
 
-sub journal_log_update 
-{
-    my ($self, $upd, @rest) = @_;
+sub journal_log_update {
+    my $self = shift;
 
-    if($self->in_storage)
-    {
+    if($self->in_storage) {
         my $j = $self->_journal_schema;
 
         my $change = $j->journal_create_change;
@@ -96,21 +81,21 @@ DBIx::Class::Journal - auditing for tables managed by DBIx::Class
 
 =head1 SYNOPSIS
 
-  package My::Schema;
-  use base 'DBIx::Class::Schema';
+ package My::Schema;
+ use base 'DBIx::Class::Schema';
 
-  __PACKAGE__->load_components(qw/+DBIx::Class::Schema::Journal/);
+ __PACKAGE__->load_components(qw/Schema::Journal/);
 
-  __PACKAGE__->journal_connection(['dbi:SQLite:t/var/Audit.db']);
-  __PACKAGE__->journal_user(['My::Schema::User', {'foreign.userid' => 'self.user_id'}]);
+ __PACKAGE__->journal_connection(['dbi:SQLite:t/var/Audit.db']);
+ __PACKAGE__->journal_user(['My::Schema::User', {'foreign.userid' => 'self.user_id'}]);
 
 
- ########
+ #######
 
-  $schema->changeset_user($user->id);
-  my $new_artist = $schema->txn_do( sub {
-   return = $schema->resultset('Artist')->create({ name => 'Fred' });
-  });
+ $schema->changeset_user($user->id);
+ my $new_artist = $schema->txn_do( sub {
+    return $schema->resultset('Artist')->create({ name => 'Fred' });
+ });
 
 
 =head1 DESCRIPTION
@@ -122,7 +107,7 @@ create/update/delete operation an id. The creation and deletion date
 of each row is stored, as well as the previous contents of any row
 that gets changed.
 
-All queries which want auditing should be called using
+All queries which need auditing must be called using
 L<DBIx::Class::Schema/txn_do>, which is used to create changesets for
 each transaction.
 
@@ -135,7 +120,7 @@ change, use C<< $schema->_journal_schema >>.
 
 =head2 TABLES
 
-The journal schema contains a number of tables. 
+The journal schema contains a number of tables.
 
 =over
 
