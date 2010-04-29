@@ -21,6 +21,7 @@ MANIFEST.SKIP
 META.yml
 t/01test.t
 t/02noautodeploy.t
+t/03populate.t
 t/lib/DBICTest.pm
 t/lib/DBICTest/Schema.pm
 t/lib/DBICTest/Schema/Artist.pm
