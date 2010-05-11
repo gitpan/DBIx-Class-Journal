@@ -27,4 +27,4 @@ requires:
 resources:
   license: http://dev.perl.org/licenses/
   repository: http://dev.catalyst.perl.org/repos/bast/DBIx-Class-Journal/
-version: 0.900001_06
+version: 0.900100
