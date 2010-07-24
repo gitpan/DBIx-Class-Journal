@@ -10,7 +10,7 @@ build_requires:
 configure_requires:
   ExtUtils::MakeMaker: 6.42
 distribution_type: module
-generated_by: 'Module::Install version 0.99'
+generated_by: 'Module::Install version 1.00'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -23,8 +23,9 @@ no_index:
 requires:
   Class::C3::Componentised: 1.0006
   DBIx::Class: 0.08115
+  DBIx::Class::TimeStamp: 0.13
   perl: 5.8.1
 resources:
   license: http://dev.perl.org/licenses/
   repository: http://dev.catalyst.perl.org/repos/bast/DBIx-Class-Journal/
-version: 0.900102
+version: 0.900200

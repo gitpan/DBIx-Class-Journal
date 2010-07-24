@@ -5,15 +5,12 @@ use base qw/DBIx::Class/;
 use strict;
 use warnings;
 
-our $VERSION = '0.900102';
+our $VERSION = '0.900200';
 $VERSION = eval $VERSION; # no errors in dev versions
 
 ## On create/insert, add new entry to AuditLog and new content to AuditHistory
 
-sub _journal_schema {
-    my $self = shift;
-    $self->result_source->schema->_journal_schema;
-}
+sub _journal_schema { $_[0]->result_source->schema->_journal_schema }
 
 sub insert {
     my ($self, @args) = @_;

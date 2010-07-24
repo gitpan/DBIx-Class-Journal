@@ -17,6 +17,7 @@ test_requires 'SQL::Translator'     => '0.11003'; # we'll make this optional for
 
 requires 'DBIx::Class'              => '0.08115';
 requires 'Class::C3::Componentised' => '1.0006';
+requires 'DBIx::Class::TimeStamp' => '0.13';
 
 tests_recursive ('t');
 
