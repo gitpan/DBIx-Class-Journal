@@ -17,12 +17,11 @@ test_requires 'SQL::Translator'     => '0.11003'; # we'll make this optional for
 
 requires 'DBIx::Class'              => '0.08115';
 requires 'Class::C3::Componentised' => '1.0006';
-requires 'DBIx::Class::TimeStamp' => '0.13';
 
 tests_recursive ('t');
 
 resources 'license'     => 'http://dev.perl.org/licenses/';
-resources 'repository'  => 'http://dev.catalyst.perl.org/repos/bast/DBIx-Class-Journal/';
+resources 'repository'  => 'http://github.com/dbsrgits/DBIx-Class-Journal';
 
 WriteAll();
 
